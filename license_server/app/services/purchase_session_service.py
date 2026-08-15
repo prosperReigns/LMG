@@ -21,6 +21,7 @@ from app.repositories.purchase_session_repository import (
     list_recoverable_purchase_sessions,
     list_purchase_session_records,
     save_purchase_session,
+    PurchaseSessionRepository,
 )
 from app.schemas.purchase_session import CompletePaymentRequest, PurchaseSessionCreate, PurchaseInitializationResponse
 from app.services.audit_service import record_audit_event
@@ -146,6 +147,102 @@ def start_purchase(db: Session, payload: PurchaseSessionCreate) -> PurchaseSessi
         "checkout_url": purchase_session.checkout_url,
         "poll_token": purchase_session.poll_token,
         "expires_at": purchase_session.expires_at.isoformat(),
+    }
+
+
+def complete_free_trial(
+    db: Session,
+    checkout_token: str,
+) -> dict:
+    """
+    Complete a free trial purchase without going through
+    the payment gateway.
+
+    The existing purchase orchestration pipeline is then
+    responsible for creating the license, device, activation,
+    receipt, token, and completing the purchase.
+    """
+
+    purchase_session = (
+        PurchaseSessionRepository.get_checkout_session(
+            db,
+            checkout_token,
+        )
+    )
+
+    if purchase_session is None:
+        # checkout_token is not the payment reference, so
+        # retrieve it directly through the repository.
+        purchase_session = (
+            db.scalar(
+                select(PurchaseSession).where(
+                    PurchaseSession.checkout_token == checkout_token
+                )
+            )
+        )
+
+    if purchase_session is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Purchase session not found.",
+        )
+
+    if purchase_session.completed:
+        return {
+            "status": "completed",
+            "session_id": str(purchase_session.id),
+        }
+
+    if purchase_session.plan_code != "trial":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This purchase is not a free trial.",
+        )
+
+    if is_expired(purchase_session.expires_at):
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail="Trial checkout session has expired.",
+        )
+
+    if purchase_session.status != PurchaseStatus.PAYMENT_VERIFIED.value:
+        from app.services.purchase_state_machine import validate_transition
+
+        validate_transition(
+            purchase_session.status,
+            PurchaseStatus.PAYMENT_VERIFIED,
+        )
+
+        purchase_session.status = (
+            PurchaseStatus.PAYMENT_VERIFIED.value
+        )
+
+    purchase_session.gateway = None
+    purchase_session.gateway_reference = None
+    purchase_session.gateway_transaction_id = None
+    purchase_session.payment_reference = None
+    purchase_session.gateway_response = None
+
+    save_purchase_session(
+        db,
+        purchase_session,
+    )
+
+    db.commit()
+
+    from app.tasks.purchase_tasks import orchestrate_purchase
+
+    async_result = orchestrate_purchase.apply_async(
+        kwargs={
+            "session_id": str(purchase_session.id),
+        },
+        queue="purchase",
+    )
+
+    return {
+        "status": "queued",
+        "session_id": str(purchase_session.id),
+        "task_id": str(async_result.id),
     }
 
 

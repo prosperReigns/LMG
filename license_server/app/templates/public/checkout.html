@@ -1,14 +1,86 @@
 {% extends "base/base_public.html" %}
 
 {% block title %}
+{% if trial %}
+Free Trial Activated
+{% else %}
 Checkout in Progress
+{% endif %}
 {% endblock %}
 
 {% block content %}
 
-<div class="row justify-content-center">
+<div class="col-lg-8 col-xl-7">
 
-    <div class="col-lg-8 col-xl-7">
+    {% if trial %}
+
+        <!-- =========================================================
+             FREE TRIAL
+        ========================================================== -->
+
+        <section
+            class="public-card public-card--hero text-center"
+        >
+
+            <div class="public-badge mb-3">
+                <i class="bi bi-check-circle"></i>
+                Free trial activated
+            </div>
+
+            <div class="public-icon public-icon--pulse">
+                <i class="bi bi-check-lg"></i>
+            </div>
+
+            <h1 class="public-title mb-3">
+                Your free trial is ready
+            </h1>
+
+            <p class="public-lead mb-4">
+                Your 7-day free trial has been activated successfully.
+                You can now return to the Examcenter application.
+            </p>
+
+            <div class="public-summary">
+
+                <div>
+                    <span>Purchase</span>
+                    <strong>{{ purchase.id }}</strong>
+                </div>
+
+                <div>
+                    <span>Product</span>
+                    <strong>{{ purchase.product_code }}</strong>
+                </div>
+
+                <div>
+                    <span>Computer</span>
+                    <strong>{{ purchase.fingerprint }}</strong>
+                </div>
+
+                <div>
+                    <span>Plan</span>
+                    <strong>{{ purchase.plan_code }}</strong>
+                </div>
+
+            </div>
+
+            <div class="mt-4">
+
+                <p class="public-meta mb-0">
+                    Activation has been processed successfully.
+                    You may close this page.
+                </p>
+
+            </div>
+
+        </section>
+
+
+    {% else %}
+
+        <!-- =========================================================
+             PAID PLANS
+        ========================================================== -->
 
         <section
             class="public-card public-card--hero text-center"
@@ -25,45 +97,62 @@ Checkout in Progress
                 <i class="bi bi-arrow-repeat"></i>
             </div>
 
-            <h1 class="public-title mb-3">Redirecting to secure payment</h1>
+            <h1 class="public-title mb-3">
+                Redirecting to secure payment
+            </h1>
 
             <p class="public-lead mb-4">
-                We found your purchase session and are preparing the payment gateway.
-                You will be redirected automatically.
+                We found your purchase session and are preparing
+                the payment gateway. You will be redirected automatically.
             </p>
 
             <div class="public-summary">
+
                 <div>
                     <span>Purchase</span>
-                    <strong>{{ purchase.id}}</strong>
+                    <strong>{{ purchase.id }}</strong>
                 </div>
+
                 <div>
                     <span>Product</span>
-                    <strong>{{ purchase.product_code}}</strong>
+                    <strong>{{ purchase.product_code }}</strong>
                 </div>
+
                 <div>
                     <span>Computer</span>
-                    <strong>{{ purchase.fingerprint}}</strong>
+                    <strong>{{ purchase.fingerprint }}</strong>
                 </div>
+
             </div>
 
-            <div class="public-progress mt-4" aria-hidden="true">
+            <div
+                class="public-progress mt-4"
+                aria-hidden="true"
+            >
                 <div class="public-progress__bar"></div>
             </div>
 
             <p class="public-meta mt-3 mb-0">
-                If the redirect does not start, use the secure payment button below.
+                If the redirect does not start,
+                use the secure payment button below.
             </p>
 
-            <div class="d-grid d-sm-flex justify-content-sm-center gap-3 mt-4">
-                <a class="btn btn-primary btn-lg" href="{{ checkout_url }}">
+            <div
+                class="d-grid d-sm-flex justify-content-sm-center gap-3 mt-4"
+            >
+
+                <a
+                    class="btn btn-primary btn-lg"
+                    href="{{ checkout_url }}"
+                >
                     Continue to payment
                 </a>
+
             </div>
 
         </section>
 
-    </div>
+    {% endif %}
 
 </div>
 

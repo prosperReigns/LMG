@@ -1,11 +1,20 @@
 from fastapi import (
     APIRouter,
     Depends,
+    HTTPException,
 )
 from fastapi import Request
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
+from app.services.purchase_session_service import (
+    complete_free_trial,
+)
+from app.services.purchase_orchestration_service import (
+            complete_purchase,
+        )
+from app.enums.purchase_status import PurchaseStatus
+from fastapi.responses import RedirectResponse
 
 # rate limiting
 try:
@@ -36,10 +45,8 @@ router = APIRouter(
     tags=["Public Checkout"],
 )
 
-@limiter.limit(
-    "5/minute"
-)
 
+@limiter.limit("5/minute")
 @router.get("/{checkout_token}")
 def get_checkout(
     request: Request,
@@ -47,14 +54,62 @@ def get_checkout(
     db: Session = Depends(get_db),
 ):
     purchase = get_checkout_page(
-
         db,
-
         checkout_token,
-
     )
 
-    payment = PaymentInitializationService(db).initialize_payment(
+    # ------------------------------------------------------------
+    # FREE TRIAL
+    # ------------------------------------------------------------
+
+    if purchase.plan_code == "trial":
+
+        # A trial is treated as payment-verified immediately.
+        if purchase.status == PurchaseStatus.PENDING.value:
+
+            purchase.status = PurchaseStatus.PAYMENT_VERIFIED.value
+            purchase.payment_status = "trial"
+            purchase.gateway = None
+            purchase.gateway_reference = None
+            purchase.gateway_transaction_id = None
+
+            db.add(purchase)
+            db.commit()
+            db.refresh(purchase)
+
+        # Complete the exact same orchestration used
+        # after successful paid payment.
+        complete_purchase(
+            db,
+            purchase,
+        )
+
+        db.refresh(purchase)
+
+        # --------------------------------------------------------
+        # Return to the CBT application.
+        # --------------------------------------------------------
+
+        return_url = request.query_params.get("return_url")
+
+        if not return_url:
+            raise HTTPException(
+                status_code=400,
+                detail="Return URL missing.",
+            )
+
+        return RedirectResponse(
+            url=return_url,
+            status_code=303,
+        )
+
+    # ------------------------------------------------------------
+    # PAID PLANS
+    # ------------------------------------------------------------
+
+    payment = PaymentInitializationService(
+        db
+    ).initialize_payment(
         checkout_token
     )
 
@@ -64,6 +119,7 @@ def get_checkout(
             "request": request,
             "checkout_url": payment["authorization_url"],
             "purchase": purchase,
+            "trial": False,
         },
     )
 
@@ -173,4 +229,14 @@ def purchase_status(
 
     return service.purchase_status(
         checkout_token
+    )
+
+@router.post("/{checkout_token}/trial")
+def start_free_trial(
+    checkout_token: str,
+    db: Session = Depends(get_db),
+):
+    return complete_free_trial(
+        db,
+        checkout_token,
     )

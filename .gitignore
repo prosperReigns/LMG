@@ -5,4 +5,5 @@ __pycache__/
 celerybeat-schedule
 storage/
 .env
-keys/
+keys/private.pem
+keys/*.key
