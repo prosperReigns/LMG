@@ -27,8 +27,6 @@ class EntitlementDeviceService:
             select(LicenseDevice).where(LicenseDevice.machine_id == machine_id)
         )
         if device is None:
-            if license_id is None:
-                raise EntitlementError("A new device requires the legacy license owner during migration")
             device = LicenseDevice(
                 license_id=license_id,
                 machine_id=machine_id,
