@@ -61,7 +61,8 @@ class EntitlementMigrationService:
         except Exception:
             legacy_features = {}
 
-        # A legacy package with no explicit feature map receives only the root Pro entitlement.\n        # Future Pro features must not be silently granted during migration.\n        features = {"pro": True}\n        features.update(legacy_features)\n        for code, enabled in features.items():
+        # A legacy package with no explicit feature map receives only the root Pro entitlement.
+        # Future Pro features must not be silently granted during migration.\n        features = {"pro": True}\n        features.update(legacy_features)\n        for code, enabled in features.items():
             self.db.add(
                 EntitlementFeature(
                     entitlement_id=entitlement.id,
