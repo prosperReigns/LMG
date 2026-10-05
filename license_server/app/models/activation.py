@@ -12,6 +12,15 @@ from app.models.base import TimestampMixin, UUIDPrimaryKeyMixin
 class Activation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "activations"
 
+    entitlement_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("entitlements.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    installation_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    activation_type: Mapped[str] = mapped_column(String(40), nullable=False, default="initial")
+
     license_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("licenses.id", ondelete="RESTRICT"), nullable=False, index=True, unique=True)
     device_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
@@ -33,3 +42,4 @@ class Activation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         back_populates="activations",
     )
     school = relationship("School", back_populates="activations")
+    entitlement = relationship("Entitlement", back_populates="activations")
