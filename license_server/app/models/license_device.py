@@ -12,7 +12,7 @@ from app.models.base import TimestampMixin, UUIDPrimaryKeyMixin
 class LicenseDevice(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "license_devices"
 
-    license_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("licenses.id", ondelete="RESTRICT"), nullable=False, index=True, unique=True)
+    license_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("licenses.id", ondelete="SET NULL"), nullable=True, index=True, unique=True)
 
     machine_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True, unique=True)
 
