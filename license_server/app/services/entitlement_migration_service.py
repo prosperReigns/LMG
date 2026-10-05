@@ -83,6 +83,24 @@ class EntitlementMigrationService:
             entitlement.activation_count += 1
 
         self.db.flush()
+
+        active_device = next(
+            (device for device in license_obj.devices if not device.blacklisted),
+            None,
+        )
+        machine_id = active_device.machine_id if active_device is not None else license_obj.machine_fingerprint
+        try:
+            from app.services.entitlement_service import EntitlementService
+            EntitlementService(self.db).issue_signed_package(
+                entitlement,
+                installation_id=f"legacy-{license_obj.id}",
+                machine_id=machine_id,
+            )
+        except Exception:
+            entitlement.signed_package = None
+            self.db.add(entitlement)
+
+        self.db.flush()
         return entitlement
 
     @staticmethod
