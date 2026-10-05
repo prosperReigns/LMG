@@ -11,6 +11,9 @@ class PurchaseSessionCreate(BaseModel):
     version: str = Field(default="1.0", min_length=1, max_length=50)
     plan_code: str = Field(min_length=1, max_length=50)
     duration_months: int | None = None
+    edition: str | None = Field(default=None, max_length=50)
+    installation_id: str | None = Field(default=None, max_length=255)
+    machine_id: str | None = Field(default=None, max_length=255)
 
     amount: Decimal | None = None
 
