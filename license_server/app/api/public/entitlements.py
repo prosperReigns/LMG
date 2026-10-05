@@ -14,6 +14,8 @@ from app.schemas.entitlement_api import (
 from app.services.entitlement_activation_service import activate_from_token
 from app.services.entitlement_device_service import EntitlementDeviceService
 from app.services.entitlement_service import EntitlementError, EntitlementService
+from app.models.entitlement_device import EntitlementDevice
+from app.utils.time import utcnow
 
 
 router = APIRouter(
@@ -63,12 +65,12 @@ def entitlement_heartbeat(
     active = status_value == "active"
 
     if active:
-        device = db.query(EntitlementDeviceService.__annotations__.get("return", object)).first() if False else None
-        binding = db.query(__import__("app.models.entitlement_device", fromlist=["EntitlementDevice"]).EntitlementDevice).filter(
-            __import__("app.models.entitlement_device", fromlist=["EntitlementDevice"]).EntitlementDevice.entitlement_id == entitlement.id
+        binding = db.query(EntitlementDevice).filter(
+            EntitlementDevice.entitlement_id == entitlement.id,
+            EntitlementDevice.status == "active",
         ).first()
         if binding:
-            binding.last_verified_at = __import__("app.utils.time", fromlist=["utcnow"]).utcnow()
+            binding.last_verified_at = utcnow()
             db.commit()
 
     return ProHeartbeatResponse(
