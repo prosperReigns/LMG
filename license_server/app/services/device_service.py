@@ -2,9 +2,12 @@ from uuid import UUID
 from datetime import datetime, timezone
 
 from fastapi import HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.license_device import LicenseDevice
+from app.models.entitlement_device import EntitlementDevice
+from app.models.entitlement import Entitlement
 from app.repositories.license_device_repository import (
     blacklist_device,
     get_device,
@@ -348,9 +351,28 @@ def heartbeat_device(
     )
 
     # ------------------------------------------------------------------
-    # Find the license attached to this device
-    # ------------------------------------------------------------------
+    # Find the canonical Pro entitlement first.
+    entitlement_binding = db.scalar(
+        select(EntitlementDevice).where(
+            EntitlementDevice.device_id == device.id,
+            EntitlementDevice.status == "active",
+        )
+    )
+    if entitlement_binding is not None:
+        entitlement = db.get(Entitlement, entitlement_binding.entitlement_id)
+        if entitlement is not None:
+            from app.services.entitlement_service import EntitlementService
+            status_value = EntitlementService(db).refresh_status(entitlement)
+            db.commit()
+            return {
+                "status": "alive" if status_value == "active" else status_value,
+                "last_seen": updated.last_seen,
+                "expiry_date": entitlement.expires_at.isoformat() if entitlement.expires_at else None,
+                "grace_until": None,
+                "message": f"Pro entitlement is {status_value}.",
+            }
 
+    # Fall back to the legacy license for old installations.
     license_obj = get_license_by_id(
         db,
         device.license_id,
