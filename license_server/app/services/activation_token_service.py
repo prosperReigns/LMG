@@ -18,7 +18,8 @@ def create_activation_token(
     db: Session,
     *,
     purchase_session,
-    license,
+    license=None,
+    entitlement=None,
     fingerprint: str,
     ttl_minutes: int = 15,
 ) -> ActivationToken:
@@ -32,7 +33,8 @@ def create_activation_token(
     activation_token = ActivationToken(
         token=generate_token(),
         purchase_session_id=purchase_session.id,
-        license_id=license.id,
+        license_id=license.id if license is not None else None,
+        entitlement_id=entitlement.id if entitlement is not None else None,
         machine_fingerprint=fingerprint.strip(),
         expires_at=utcnow() + timedelta(minutes=ttl_minutes),
     )
@@ -56,8 +58,8 @@ class ActivationTokenService:
         if purchase_session is None:
             raise ValueError("Purchase session not found.")
 
-        if purchase_session.license_id is None:
-            raise ValueError("Purchase session has no license.")
+        if purchase_session.license_id is None and purchase_session.entitlement_id is None:
+            raise ValueError("Purchase session has no entitlement or license.")
 
         license_obj = self.db.get(License, purchase_session.license_id)
         if license_obj is None:
