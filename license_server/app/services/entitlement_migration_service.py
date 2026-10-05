@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.entitlement import Entitlement
@@ -62,7 +63,8 @@ class EntitlementMigrationService:
             legacy_features = {}
 
         # A legacy package with no explicit feature map receives only the root Pro entitlement.
-        # Future Pro features must not be silently granted during migration.\n        features = {"pro": True}\n        features.update(legacy_features)\n        for code, enabled in features.items():
+        # Future Pro features must not be silently granted during migration.
+        features = {"pro": True}\n        features.update(legacy_features)\n        for code, enabled in features.items():
             self.db.add(
                 EntitlementFeature(
                     entitlement_id=entitlement.id,
