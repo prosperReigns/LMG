@@ -12,6 +12,13 @@ from app.models.base import TimestampMixin, UUIDPrimaryKeyMixin
 class Invoice(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "invoices"
 
+    entitlement_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("entitlements.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
     license_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("licenses.id", ondelete="CASCADE"),
@@ -63,6 +70,7 @@ class Invoice(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
 
     license = relationship("License", back_populates="invoices",)
+    entitlement = relationship("Entitlement")
     school = relationship("School", back_populates="invoices",)
     payments = relationship(
         "Payment",
