@@ -28,6 +28,10 @@ def create_activation_token(
         purchase_session.id,
     )
     if existing is not None:
+        if entitlement is not None and existing.entitlement_id is None:
+            existing.entitlement_id = entitlement.id
+            db.add(existing)
+            db.flush()
         return existing
 
     activation_token = ActivationToken(
