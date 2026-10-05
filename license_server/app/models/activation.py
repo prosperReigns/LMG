@@ -21,7 +21,7 @@ class Activation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     installation_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
     activation_type: Mapped[str] = mapped_column(String(40), nullable=False, default="initial")
 
-    license_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("licenses.id", ondelete="RESTRICT"), nullable=False, index=True, unique=True)
+    license_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("licenses.id", ondelete="SET NULL"), nullable=True, index=True, unique=True)
     device_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("license_devices.id", ondelete="SET NULL"),
