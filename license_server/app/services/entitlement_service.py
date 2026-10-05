@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any
 from uuid import UUID, uuid4
 
 from sqlalchemy.orm import Session
 
 from app.models.entitlement import Entitlement
 from app.models.entitlement_feature import EntitlementFeature
+from app.utils.entitlement_crypto import build_signed_entitlement
 from app.repositories.entitlement_repository import (
     get_active_pro_entitlement,
     get_entitlement,
@@ -151,6 +151,32 @@ class EntitlementService:
             )
         )
         return self.has_feature(entitlement, feature_code)
+
+    def issue_signed_package(
+        self,
+        entitlement: Entitlement,
+        *,
+        installation_id: str,
+        machine_id: str,
+    ) -> str:
+        if not self.is_active(entitlement):
+            raise EntitlementError("Only an active entitlement can issue a signed package")
+
+        features = self.get_feature_snapshot(entitlement)
+        package = build_signed_entitlement(
+            entitlement_id=entitlement.id,
+            installation_id=installation_id,
+            machine_id=machine_id,
+            starts_at=entitlement.starts_at,
+            expires_at=entitlement.expires_at,
+            features=features,
+            public_key_version=entitlement.public_key_version,
+        )
+        entitlement.signed_package = package
+        entitlement.package_version = 2
+        self.db.add(entitlement)
+        self.db.flush()
+        return package
 
     def suspend(self, entitlement: Entitlement) -> Entitlement:
         return set_status(self.db, entitlement, status="suspended")
