@@ -38,6 +38,13 @@ class ActivationToken(Base):
         nullable=False,
     )
 
+    entitlement_id: Mapped[UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("entitlements.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
     license_id: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("licenses.id"),
