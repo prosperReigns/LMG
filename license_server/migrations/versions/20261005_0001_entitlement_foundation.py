@@ -1,7 +1,7 @@
 """add entitlement foundation
 
 Revision ID: 20261005_0001
-Revises: 59e7c4d5f192
+Revises: c94620f65801
 Create Date: 2026-10-05
 """
 from alembic import op
