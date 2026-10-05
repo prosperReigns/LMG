@@ -22,11 +22,16 @@ def create_pro_purchase(
     if payload.product_code != "examcenter" or payload.edition != "pro":
         raise HTTPException(status_code=400, detail="Only the Examcenter Pro product is supported")
 
+    plan_by_duration = {6: "6_months", 12: "12_months", 24: "24_months"}
+    plan_code = plan_by_duration.get(payload.duration_months)
+    if plan_code is None:
+        raise HTTPException(status_code=400, detail="Supported Pro durations are 6, 12, or 24 months")
+
     legacy = PurchaseSessionCreate(
         fingerprint=payload.machine_id,
         product_code="examcenter",
         version=payload.version,
-        plan_code=f"pro_{payload.duration_months}_months",
+        plan_code=plan_code,
         duration_months=payload.duration_months,
         customer_name=payload.customer_name,
         customer_email=payload.customer_email,
