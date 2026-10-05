@@ -46,6 +46,9 @@ from app.services.activation_token_service import create_activation_token
 from app.services.audit_service import record_audit_event
 from app.services.invoice_service import generate_invoice_number
 from app.services.license_service import create_signed_license, normalize_license_type
+from app.services.entitlement_service import EntitlementService
+from app.services.entitlement_renewal_service import EntitlementRenewalService
+from app.models.entitlement import Entitlement
 from app.services.purchase_state_machine import validate_transition
 from app.services.receipt_service import generate_receipt_number
 from app.utils.time import is_expired, is_token_deliverable, utcnow
@@ -232,7 +235,28 @@ def _get_or_create_license(db: Session, purchase_session: PurchaseSession, schoo
     return license_obj
 
 
-def _get_or_create_invoice(db: Session, purchase_session: PurchaseSession, license_obj) -> Invoice:
+def _get_or_create_entitlement(db: Session, purchase_session: PurchaseSession, customer, school, license_obj):
+    service = EntitlementService(db)
+    existing = service.get(purchase_session.entitlement_id) if purchase_session.entitlement_id else None
+    if existing is None:
+        existing = db.scalar(select(Entitlement).where(Entitlement.legacy_license_id == license_obj.id))
+    if existing is None:
+        existing = service.create_pro_entitlement(
+            customer_id=customer.id,
+            school_id=school.id,
+            starts_at=license_obj.issued_at,
+            expires_at=license_obj.expiry_at,
+            max_devices=max(license_obj.max_activations or 1, 1),
+            legacy_license_id=license_obj.id,
+        )
+    elif purchase_session.duration_months:
+        EntitlementRenewalService(db).renew(existing, duration_days=max(purchase_session.duration_months * 30, 1), amount=purchase_session.amount, currency=purchase_session.currency, plan_code=purchase_session.plan_code)
+    purchase_session.entitlement_id = existing.id
+    save_purchase_session(db, purchase_session)
+    db.flush()
+    return existing
+
+def _get_or_create_invoice(db: Session, purchase_session: PurchaseSession, license_obj, entitlement=None) -> Invoice:
     if purchase_session.invoice_id:
         invoice = db.get(Invoice, purchase_session.invoice_id)
         if invoice is not None:
@@ -264,9 +288,10 @@ def _get_or_create_invoice(db: Session, purchase_session: PurchaseSession, licen
 
     invoice = Invoice(
         license_id=license_obj.id,
+        entitlement_id=entitlement.id if entitlement is not None else None,
         school_id=license_obj.school_id,
         invoice_number=generate_invoice_number(db),
-        description=f"{purchase_session.plan_code} license purchase",
+        description=f"Examcenter Pro {purchase_session.duration_months}-month purchase",
         amount=purchase_session.amount,
         currency=purchase_session.currency,
         status="paid",
@@ -555,7 +580,8 @@ def complete_purchase(
         license_obj = _get_or_create_license(db, purchase_session, school)
 
         print("AFTER LICENSE:", purchase_session.status)
-        invoice = _get_or_create_invoice(db, purchase_session, license_obj)
+        entitlement = _get_or_create_entitlement(db, purchase_session, customer, school, license_obj)
+        invoice = _get_or_create_invoice(db, purchase_session, license_obj, entitlement)
 
         print("AFTER INVOICE:", purchase_session.status)
         payment = _get_or_create_payment(db, purchase_session, customer, school, invoice)
