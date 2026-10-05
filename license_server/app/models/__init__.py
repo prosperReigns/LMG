@@ -28,6 +28,10 @@ from app.models.webhook_event import WebhookEvent
 
 __all__ = [
 	"Activation",
+    "Entitlement",
+    "EntitlementFeature",
+    "EntitlementDevice",
+    "EntitlementRenewal",
     "ActivationToken",
 	"Admin",
 	"AuditLog",
