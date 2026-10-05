@@ -103,6 +103,25 @@ class EntitlementMigrationService:
         self.db.flush()
         return entitlement
 
+    def migrate_all(self):
+        licenses = self.db.scalars(
+            select(License).order_by(License.issued_at, License.id)
+        ).all()
+        result = {"total": len(licenses), "migrated": 0, "existing": 0}
+        for license_obj in licenses:
+            existing = self.db.scalar(
+                select(Entitlement).where(
+                    Entitlement.legacy_license_id == license_obj.id
+                )
+            )
+            if existing is not None:
+                result["existing"] += 1
+                continue
+            self.migrate_license(license_obj)
+            self.db.commit()
+            result["migrated"] += 1
+        return result
+
     @staticmethod
     def _map_status(license_obj: License) -> str:
         now = datetime.now(timezone.utc)
