@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.activation import Activation
@@ -177,6 +178,53 @@ def validate_public_license(
         license_id = UUID(license_key)
     except ValueError:
         return {"valid": False, "status": "invalid", "expires_at": None, "message": "Invalid license key."}
+
+    # Compatibility adapter: a legacy license key may now resolve to the
+    # canonical Pro entitlement. Core functionality is never represented here.
+    from app.models.entitlement import Entitlement
+    from app.services.entitlement_service import EntitlementService
+
+    entitlement = db.scalar(
+        select(Entitlement).where(Entitlement.legacy_license_id == license_id)
+    )
+    if entitlement is not None:
+        service = EntitlementService(db)
+        status_value = service.refresh_status(entitlement)
+        if status_value != "active":
+            return {
+                "valid": False,
+                "status": status_value,
+                "expires_at": entitlement.expires_at.isoformat() if entitlement.expires_at else None,
+                "message": f"Pro entitlement is {status_value}.",
+            }
+
+        requested_machine = (machine_id or fingerprint).strip()
+        if requested_machine:
+            from app.models.entitlement_device import EntitlementDevice
+            from app.models.license_device import LicenseDevice
+            binding = db.scalar(
+                select(EntitlementDevice)
+                .join(LicenseDevice, LicenseDevice.id == EntitlementDevice.device_id)
+                .where(
+                    EntitlementDevice.entitlement_id == entitlement.id,
+                    EntitlementDevice.status == "active",
+                    LicenseDevice.machine_id == requested_machine,
+                )
+            )
+            if binding is None:
+                return {
+                    "valid": False,
+                    "status": "fingerprint_mismatch",
+                    "expires_at": entitlement.expires_at.isoformat() if entitlement.expires_at else None,
+                    "message": "Machine is not bound to this Pro entitlement.",
+                }
+
+        return {
+            "valid": True,
+            "status": "valid",
+            "expires_at": entitlement.expires_at.isoformat() if entitlement.expires_at else None,
+            "message": "Pro entitlement is valid for this machine.",
+        }
 
     result = validate_license_for_machine(db, license_id, machine_id or fingerprint)
     return {
