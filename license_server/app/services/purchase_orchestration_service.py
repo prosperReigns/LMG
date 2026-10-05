@@ -237,7 +237,8 @@ def _get_or_create_license(db: Session, purchase_session: PurchaseSession, schoo
 
 def _get_or_create_entitlement(db: Session, purchase_session: PurchaseSession, customer, school, license_obj):
     service = EntitlementService(db)
-    existing = service.get(purchase_session.entitlement_id) if purchase_session.entitlement_id else None
+    linked_entitlement = service.get(purchase_session.entitlement_id) if purchase_session.entitlement_id else None
+    existing = linked_entitlement
     if existing is None:
         existing = db.scalar(select(Entitlement).where(Entitlement.legacy_license_id == license_obj.id))
     if existing is None:
@@ -249,8 +250,14 @@ def _get_or_create_entitlement(db: Session, purchase_session: PurchaseSession, c
             max_devices=max(license_obj.max_activations or 1, 1),
             legacy_license_id=license_obj.id,
         )
-    elif purchase_session.duration_months:
-        EntitlementRenewalService(db).renew(existing, duration_days=max(purchase_session.duration_months * 30, 1), amount=purchase_session.amount, currency=purchase_session.currency, plan_code=purchase_session.plan_code)
+    elif linked_entitlement is None and purchase_session.duration_months:
+        EntitlementRenewalService(db).renew(
+            existing,
+            duration_days=max(purchase_session.duration_months * 30, 1),
+            amount=purchase_session.amount,
+            currency=purchase_session.currency,
+            plan_code=purchase_session.plan_code,
+        )
     purchase_session.entitlement_id = existing.id
     save_purchase_session(db, purchase_session)
     db.flush()
