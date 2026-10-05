@@ -65,15 +65,25 @@ class ActivationTokenService:
         if purchase_session.license_id is None and purchase_session.entitlement_id is None:
             raise ValueError("Purchase session has no entitlement or license.")
 
-        license_obj = self.db.get(License, purchase_session.license_id)
-        if license_obj is None:
-            raise ValueError("License not found.")
+        license_obj = (
+            self.db.get(License, purchase_session.license_id)
+            if purchase_session.license_id is not None
+            else None
+        )
+        entitlement = None
+        if purchase_session.entitlement_id is not None:
+            from app.models.entitlement import Entitlement
+            entitlement = self.db.get(Entitlement, purchase_session.entitlement_id)
+
+        if license_obj is None and entitlement is None:
+            raise ValueError("Purchase session has no usable license or entitlement.")
 
         token = create_activation_token(
             self.db,
             purchase_session=purchase_session,
             license=license_obj,
-            fingerprint=purchase_session.fingerprint,
+            entitlement=entitlement,
+            fingerprint=purchase_session.machine_id or purchase_session.fingerprint,
             ttl_minutes=ttl_minutes,
         )
         purchase_session.activation_token_id = token.id
