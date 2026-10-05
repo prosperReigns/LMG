@@ -48,7 +48,7 @@ class ActivationToken(Base):
     license_id: Mapped[UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("licenses.id", ondelete="SET NULL"),
-        nullable=False,
+        nullable=True,
     )
 
     machine_fingerprint: Mapped[str] = mapped_column(
