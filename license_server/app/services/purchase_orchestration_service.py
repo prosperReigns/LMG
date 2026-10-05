@@ -524,7 +524,7 @@ def _queue_outbox_event(db: Session, purchase_session: PurchaseSession, payload:
     db.flush()
 
 
-def _get_or_create_activation_token(db: Session, purchase_session: PurchaseSession, license_obj):
+def _get_or_create_activation_token(db: Session, purchase_session: PurchaseSession, license_obj, entitlement=None):
     token = get_by_id(db, purchase_session.activation_token_id) if purchase_session.activation_token_id else None
     if is_token_deliverable(token):
         return token
@@ -535,7 +535,8 @@ def _get_or_create_activation_token(db: Session, purchase_session: PurchaseSessi
         db,
         purchase_session=purchase_session,
         license=license_obj,
-        fingerprint=purchase_session.fingerprint,
+        entitlement=entitlement,
+        fingerprint=purchase_session.machine_id or purchase_session.fingerprint,
     )
     purchase_session.activation_token_id = token.id
     save_purchase_session(db, purchase_session)
@@ -588,7 +589,7 @@ def complete_purchase(
         device = _get_or_create_device(db, purchase_session, license_obj)
         activation = _get_or_create_activation(db, purchase_session, license_obj, device)
         receipt = _get_or_create_receipt(db, purchase_session, payment)
-        activation_token = _get_or_create_activation_token(db, purchase_session, license_obj)
+        activation_token = _get_or_create_activation_token(db, purchase_session, license_obj, entitlement)
         mark_purchase_completed(db, purchase_session)
         purchase_session.completed = True
 
@@ -603,6 +604,7 @@ def complete_purchase(
                 "customer_id": str(customer.id),
                 "school_id": str(school.id),
                 "license_id": str(license_obj.id),
+                "entitlement_id": str(entitlement.id),
                 "invoice_id": str(invoice.id),
                 "payment_id": str(payment.id),
                 "activation_id": str(activation.id),
@@ -622,6 +624,7 @@ def complete_purchase(
             "session_id": str(purchase_session.id),
             "activation_token": activation_token.token,
             "license_id": str(license_obj.id),
+            "entitlement_id": str(entitlement.id),
         }
     except HTTPException as exc:
         db.rollback()
