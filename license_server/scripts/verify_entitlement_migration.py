@@ -19,7 +19,7 @@ import os
 import sys
 from pathlib import Path
 
-from sqlalchemy import inspect, select, text
+from sqlalchemy import func, inspect, select, text
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -86,29 +86,29 @@ def check_schema() -> dict:
 
 def report_data() -> dict:
     with SessionLocal() as db:
-        licenses = db.scalar(select(text("count(*)")).select_from(License.__table__))
-        entitlements = db.scalar(select(text("count(*)")).select_from(Entitlement.__table__))
+        licenses = db.scalar(select(func.count()).select_from(License.__table__))
+        entitlements = db.scalar(select(func.count()).select_from(Entitlement.__table__))
         migrated = db.scalar(
-            select(text("count(*)"))
+            select(func.count())
             .select_from(Entitlement.__table__)
             .where(Entitlement.legacy_license_id.is_not(None))
         )
         entitlement_devices = db.scalar(
-            select(text("count(*)")).select_from(EntitlementDevice.__table__)
+            select(func.count()).select_from(EntitlementDevice.__table__)
         )
         features = db.scalar(
-            select(text("count(*)")).select_from(EntitlementFeature.__table__)
+            select(func.count()).select_from(EntitlementFeature.__table__)
         )
         renewals = db.scalar(
-            select(text("count(*)")).select_from(EntitlementRenewal.__table__)
+            select(func.count()).select_from(EntitlementRenewal.__table__)
         )
         entitlement_tokens = db.scalar(
-            select(text("count(*)"))
+            select(func.count())
             .select_from(ActivationToken.__table__)
             .where(ActivationToken.entitlement_id.is_not(None))
         )
         entitlement_activations = db.scalar(
-            select(text("count(*)"))
+            select(func.count())
             .select_from(Activation.__table__)
             .where(Activation.entitlement_id.is_not(None))
         )
