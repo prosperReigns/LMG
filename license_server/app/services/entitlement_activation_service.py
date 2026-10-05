@@ -42,8 +42,6 @@ def activate_from_token(
         select(LicenseDevice).where(LicenseDevice.machine_id == machine_id)
     )
     if device is None:
-        if activation_token.license_id is None:
-            raise EntitlementError("Legacy device owner is unavailable for this activation token")
         device = EntitlementDeviceService(db).get_or_create_device(
             machine_id=machine_id,
             license_id=activation_token.license_id,
