@@ -270,6 +270,9 @@ def _get_or_create_invoice(db: Session, purchase_session: PurchaseSession, licen
 
     if existing_invoice is not None:
         print("USING EXISTING INVOICE")
+        if entitlement is not None and existing_invoice.entitlement_id is None:
+            existing_invoice.entitlement_id = entitlement.id
+            db.add(existing_invoice)
 
         purchase_session.invoice_id = existing_invoice.id
 
