@@ -45,9 +45,9 @@ class ActivationToken(Base):
         index=True,
     )
 
-    license_id: Mapped[UUID] = mapped_column(
+    license_id: Mapped[UUID | None] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("licenses.id"),
+        ForeignKey("licenses.id", ondelete="SET NULL"),
         nullable=False,
     )
 
