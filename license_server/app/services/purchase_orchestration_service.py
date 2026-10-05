@@ -549,9 +549,10 @@ def complete_purchase(
 ) -> dict[str, Any]:
     if purchase_session.completed:
         license_obj = get_license_by_id(db, purchase_session.license_id) if purchase_session.license_id else None
+        entitlement = db.get(Entitlement, purchase_session.entitlement_id) if purchase_session.entitlement_id else None
         token = (
-            _get_or_create_activation_token(db, purchase_session, license_obj)
-            if license_obj is not None
+            _get_or_create_activation_token(db, purchase_session, license_obj, entitlement)
+            if license_obj is not None or entitlement is not None
             else get_by_id(db, purchase_session.activation_token_id)
             if purchase_session.activation_token_id
             else None
